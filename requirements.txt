@@ -1,0 +1,16 @@
+streamlit
+sentence-transformers
+faiss-cpu
+transformers
+torch
+pdfplumber
+python-docx
+google-generativeai
+pandas
+numpy
+scikit-learn
+groq
+numpy
+python-dotenv
+openpyxl
+torchvision
