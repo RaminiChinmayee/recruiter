@@ -1,52 +1,60 @@
-import re
+import json
+import os
+import logging
 
 
-def clean_text(text: str) -> str:
-    """
-    Cleans extracted text.
-    """
+logging.basicConfig(
+    level=logging.INFO,
+    format=
+    "%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+def save_json(data,path):
+
+    folder=os.path.dirname(path)
+
+    if folder:
+        os.makedirs(
+            folder,
+            exist_ok=True
+        )
+
+    with open(
+        path,
+        "w",
+        encoding="utf-8"
+    ) as f:
+
+        json.dump(
+            data,
+            f,
+            indent=4
+        )
+
+
+
+def load_json(path):
+
+    if not os.path.exists(path):
+        return {}
+
+    with open(
+        path,
+        encoding="utf-8"
+    ) as f:
+
+        return json.load(f)
+
+
+
+def clean_text(text):
 
     if not text:
         return ""
 
-    text = re.sub(r"\s+", " ", text)
-
-    text = re.sub(r"\n+", "\n", text)
-
-    return text.strip()
-
-
-def split_skills(skill_string):
-    """
-    Converts comma separated skills to list.
-    """
-
-    if not skill_string:
-        return []
-
-    return [
-
-        skill.strip()
-
-        for skill in skill_string.split(",")
-
-        if skill.strip()
-
-    ]
-
-
-def normalize_skill(skill):
-    """
-    Lowercase skill.
-    """
-
-    return skill.lower().strip()
-
-
-def similarity_to_percentage(score):
-    """
-    Converts cosine similarity
-    to percentage.
-    """
-
-    return round(score * 100, 2)
+    return (
+        text
+        .replace("\x00","")
+        .strip()
+    )

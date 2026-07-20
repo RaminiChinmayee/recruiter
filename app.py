@@ -1,253 +1,776 @@
-import os
-import tempfile
 import streamlit as st
+import pandas as pd
+
 
 from src.llm import generate_job_description
+
+
 from src.resume_loader import (
-    load_uploaded_resumes,
+    load_multiple_resumes,
     extract_uploaded_file
 )
-from src.retriever import ResumeRetriever
-from src.parser import ResumeRanker
+
+
+from src.retriever import HybridRetriever
+
+
+from src.reranker import ResumeReranker
+
+
+from src.parser import parse_resume
+
+
+from src.report import export_excel
+
+
+
+# ======================================================
+# PAGE CONFIG
+# ======================================================
 
 st.set_page_config(
-    page_title="AI Resume Screening System",
-    page_icon="🤖",
+
+    page_title="AI Resume Screener",
+
+    page_icon="🚀",
+
     layout="wide"
+
 )
 
-st.title("🤖 AI Resume Screening System")
 
-tab1, tab2 = st.tabs([
-    "Generate Job Description",
-    "Resume Screening"
-])
 
-##############################################################
-# TAB 1
-##############################################################
+st.title(
+    "🚀 AI Resume Screening System"
+)
+
+
+st.caption(
+    "GenAI + RAG + FAISS + CrossEncoder + ATS Ranking"
+)
+
+
+
+tab1, tab2 = st.tabs(
+
+    [
+
+        "📝 Generate Job Description",
+
+        "📄 Resume Screening"
+
+    ]
+
+)
+
+
+
+# ======================================================
+# TAB 1 : JOB DESCRIPTION GENERATOR
+# ======================================================
+
 
 with tab1:
 
-    st.header("Generate Job Description")
+
+    st.header(
+        "Generate ATS Optimized Job Description"
+    )
+
+
 
     col1, col2 = st.columns(2)
 
+
+
     with col1:
 
-        role = st.text_input("Job Title")
 
-        location = st.text_input("Location")
+        company_name = st.text_input(
 
-        experience = st.text_input("Experience")
+            "Company Name",
 
-        employment_type = st.selectbox(
-            "Employment Type",
-            [
-                "Full Time",
-                "Part Time",
-                "Internship",
-                "Contract"
-            ]
+            "Microsoft"
+
         )
 
-        work_mode = st.selectbox(
-            "Work Mode",
-            [
-                "Onsite",
-                "Hybrid",
-                "Remote"
-            ]
+
+        role = st.text_input(
+
+            "Job Role",
+
+            "Machine Learning Engineer"
+
         )
 
-        salary = st.text_input("Salary")
 
-        notice_period = st.text_input("Notice Period")
+        experience = st.text_input(
+
+            "Experience",
+
+            "2-4 Years"
+
+        )
+
+
+        location = st.text_input(
+
+            "Location",
+
+            "Hyderabad"
+
+        )
+
+
+        skills = st.text_area(
+
+            "Technical Skills",
+
+            "Python, SQL, Machine Learning, TensorFlow, AWS"
+
+        )
+
+
 
     with col2:
 
-        education = st.text_input("Education")
 
-        technical_skills = st.text_area(
-            "Technical Skills"
+        education = st.text_input(
+
+            "Education",
+
+            "B.Tech Computer Science"
+
         )
 
-        soft_skills = st.text_area(
-            "Soft Skills"
-        )
 
         responsibilities = st.text_area(
-            "Responsibilities"
+
+            "Responsibilities",
+
+            """
+Build ML models
+Deploy APIs
+Analyze data
+Improve model performance
+"""
+
         )
+
+
+        softskills = st.text_area(
+
+            "Soft Skills",
+
+            "Communication, teamwork, problem solving"
+
+        )
+
+
+        workmode = st.selectbox(
+
+            "Work Mode",
+
+            [
+
+                "Remote",
+
+                "Hybrid",
+
+                "Onsite"
+
+            ]
+
+        )
+
+
+        salary = st.text_input(
+
+            "Salary",
+
+            "8-12 LPA"
+
+        )
+
 
         benefits = st.text_area(
-            "Benefits"
+
+            "Benefits",
+
+            "Insurance, PF, Flexible Hours"
+
         )
 
-    if st.button("Generate Job Description"):
+
+
+    if st.button(
+        "✨ Generate JD"
+    ):
+
 
         details = {
 
-            "role": role,
 
-            "location": location,
+            "company_name":
+            company_name,
 
-            "experience": experience,
 
-            "employment_type": employment_type,
+            "role":
+            role,
 
-            "work_mode": work_mode,
 
-            "salary": salary,
+            "experience":
+            experience,
 
-            "notice_period": notice_period,
 
-            "education": education,
+            "location":
+            location,
 
-            "technical_skills": technical_skills,
 
-            "soft_skills": soft_skills,
+            "technical_skills":
+            skills,
 
-            "responsibilities": responsibilities,
 
-            "benefits": benefits
+            "education":
+            education,
+
+
+            "responsibilities":
+            responsibilities,
+
+
+            "soft_skills":
+            softskills,
+
+
+            "work_mode":
+            workmode,
+
+
+            "employment_type":
+            "Full Time",
+
+
+            "salary":
+            salary,
+
+
+            "benefits":
+            benefits
+
         }
 
-        with st.spinner("Generating Job Description..."):
 
-            jd = generate_job_description(details)
 
-        st.session_state["jd"] = jd
+        with st.spinner(
+
+            "Generating JD using Llama 3.3..."
+
+        ):
+
+
+            jd = generate_job_description(
+
+                details
+
+            )
+
+
+            st.session_state["jd"] = jd
+
+
 
     if "jd" in st.session_state:
 
-        st.success("Job Description Generated")
+
+        st.subheader(
+
+            "Generated Job Description"
+
+        )
+
 
         st.text_area(
-            "Generated Job Description",
+
+            "Preview",
+
             st.session_state["jd"],
-            height=450
+
+            height=500
+
         )
+
 
         st.download_button(
-            "Download JD",
+
+            "⬇ Download JD",
+
             data=st.session_state["jd"],
-            file_name="Job_Description.txt",
+
+            file_name="job_description.txt",
+
             mime="text/plain"
+
         )
 
-##############################################################
-# TAB 2
-##############################################################
+
+
+
+
+# ======================================================
+# TAB 2 : RESUME SCREENING
+# ======================================================
+
 
 with tab2:
 
-    st.header("Resume Screening")
 
-    st.subheader("Step 1 : Upload Job Description")
+    st.header(
+
+        "AI Candidate Screening"
+
+    )
+
+
 
     uploaded_jd = st.file_uploader(
-        "Upload JD",
+
+        "Upload Job Description",
+
         type=[
+
             "pdf",
+
             "docx",
+
             "txt"
+
         ]
+
     )
 
-    jd_text = ""
 
-    if uploaded_jd is not None:
 
-        jd_text = extract_uploaded_file(uploaded_jd)
+    resumes = st.file_uploader(
 
-    else:
+        "Upload Candidate Resumes",
 
-        jd_text = st.text_area(
-            "OR Paste Job Description",
-            height=250
+        type=[
+
+            "pdf",
+
+            "docx",
+
+            "txt"
+
+        ],
+
+        accept_multiple_files=True
+
+    )
+
+
+
+    if st.button(
+
+        "🚀 Analyze Candidates"
+
+    ):
+
+
+
+        if uploaded_jd is None or not resumes:
+
+
+            st.warning(
+
+                "Upload JD and resumes"
+
+            )
+
+
+            st.stop()
+
+
+
+        # --------------------------
+        # Read Documents
+        # --------------------------
+
+
+        with st.spinner(
+
+            "Reading documents..."
+
+        ):
+
+
+
+            jd_text = extract_uploaded_file(
+
+                uploaded_jd
+
+            )
+
+
+
+            resume_data = load_multiple_resumes(
+
+                resumes
+
+            )
+
+
+
+        if not resume_data:
+
+
+            st.error(
+
+                "No resumes extracted"
+
+            )
+
+            st.stop()
+
+
+
+        # --------------------------
+        # Retrieval
+        # --------------------------
+
+
+        with st.spinner(
+
+            "Searching candidates..."
+
+        ):
+
+
+            retriever = HybridRetriever(
+
+                resume_data
+
+            )
+
+
+            candidates = retriever.search(
+
+                jd_text,
+
+                top_k=20
+
+            )
+
+
+
+        if not candidates:
+
+
+            st.error(
+
+                "No candidates found"
+
+            )
+
+            st.stop()
+
+
+
+        # --------------------------
+        # Reranking
+        # --------------------------
+
+
+        with st.spinner(
+
+            "Reranking candidates..."
+
+        ):
+
+
+
+            reranker = ResumeReranker()
+
+
+
+            ranked = reranker.rerank(
+
+                jd_text,
+
+                candidates,
+
+                top_k=10
+
+            )
+
+
+
+        # --------------------------
+        # Parse Resumes
+        # --------------------------
+
+
+        results = []
+
+
+
+        with st.spinner(
+
+            "Parsing resumes..."
+
+        ):
+
+
+            for candidate in ranked:
+
+
+
+                try:
+
+
+                    resume_json = parse_resume(
+
+                        candidate["text"]
+
+                    )
+
+
+                except Exception as e:
+
+
+                    st.warning(
+
+                        f"Parsing failed {candidate['name']}"
+
+                    )
+
+
+                    resume_json = {}
+
+
+
+                results.append({
+
+
+                    "Candidate":
+
+                    resume_json.get(
+
+                        "name",
+
+                        candidate["name"]
+
+                    ),
+
+
+
+                    "Email":
+
+                    resume_json.get(
+
+                        "email",
+
+                        ""
+
+                    ),
+
+
+
+                    "Phone":
+
+                    resume_json.get(
+
+                        "phone",
+
+                        ""
+
+                    ),
+
+
+
+                    "Location":
+
+                    resume_json.get(
+
+                        "location",
+
+                        ""
+
+                    ),
+
+
+
+                    "Skills":
+
+                    ", ".join(
+
+                        resume_json.get(
+
+                            "skills",
+
+                            []
+
+                        )
+
+                    ),
+
+
+
+                    "Experience":
+
+                    resume_json.get(
+
+                        "experience",
+
+                        ""
+
+                    ),
+
+
+
+                    "Similarity Score":
+
+                    round(
+
+                        candidate["score"],
+
+                        3
+
+                    )
+
+                })
+
+
+
+        # --------------------------
+        # Display Results
+        # --------------------------
+
+
+        df = pd.DataFrame(results)
+
+
+
+        st.success(
+
+            "Candidate screening completed"
+
         )
 
-    st.divider()
 
-    st.subheader("Step 2 : Upload Resumes")
 
-    uploaded_resumes = st.file_uploader(
-        "Upload Multiple Resumes",
-        type=[
-            "pdf",
-            "docx",
-            "txt"
-        ],
-        accept_multiple_files=True
-    )
+        st.subheader(
 
-    top_k = st.slider(
-        "Number of Candidates",
-        1,
-        20,
-        5
-    )
+            "🏆 Ranked Candidates"
 
-    if st.button("Find Best Candidates"):
+        )
 
-        if not jd_text.strip():
 
-            st.error("Please upload or paste Job Description.")
 
-        elif not uploaded_resumes:
+        st.dataframe(
 
-            st.error("Please upload resumes.")
+            df,
 
-        else:
+            use_container_width=True
 
-            with st.spinner("Reading resumes..."):
+        )
 
-                resumes = load_uploaded_resumes(
-                    uploaded_resumes
-                )
 
-            with st.spinner("Generating embeddings..."):
 
-                retriever = ResumeRetriever(
-                    resumes
-                )
+        # --------------------------
+        # Analytics
+        # --------------------------
 
-                results = retriever.retrieve(
-                    jd_text,
-                    top_k
-                )
 
-            df = ResumeRanker.shortlist(
-                results,jd_text
+        col1,col2,col3 = st.columns(3)
+
+
+
+        with col1:
+
+
+            st.metric(
+
+                "Total Resumes",
+
+                len(df)
+
             )
 
-            os.makedirs(
-                "outputs",
-                exist_ok=True
+
+
+        with col2:
+
+
+            st.metric(
+
+                "Top Candidate",
+
+                df.iloc[0]["Candidate"]
+
+                if len(df)>0
+
+                else "-"
+
             )
 
-            excel_path = ResumeRanker.save(df)
 
-            st.success("Ranking Complete")
 
-            st.dataframe(
-                df,
-                use_container_width=True
-            )
+        with col3:
 
-            with open(
-                excel_path,
-                "rb"
-            ) as f:
 
-                st.download_button(
+            st.metric(
 
-                    "Download Excel",
+                "Average Score",
 
-                    f,
+                round(
 
-                    file_name="Shortlisted_Candidates.xlsx",
+                    df["Similarity Score"].mean(),
 
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    3
+
                 )
+
+                if len(df)>0
+
+                else 0
+
+            )
+
+
+
+        # --------------------------
+        # Excel Export
+        # --------------------------
+
+
+        excel_path = export_excel(
+
+            df
+
+        )
+
+
+        with open(
+
+            excel_path,
+
+            "rb"
+
+        ) as file:
+
+
+
+            st.download_button(
+
+                "⬇ Download Excel Report",
+
+                data=file,
+
+                file_name="candidate_report.xlsx",
+
+                mime=
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+            )

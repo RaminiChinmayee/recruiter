@@ -1,105 +1,139 @@
 import faiss
 import numpy as np
+import os
+
 from sentence_transformers import SentenceTransformer
+
+from src.config import settings
+from src.utils import save_json,load_json
+
 
 
 class ResumeEmbedder:
-    """
-    Creates resume embeddings using SentenceTransformer
-    and stores them in a FAISS index.
-    """
+
 
     def __init__(self):
 
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
-
-        self.index = None
-
-        self.resume_names = []
-
-        self.resume_texts = []
-
-    # -------------------------------------------------------
-    # Build FAISS Index
-    # -------------------------------------------------------
-
-    def build_index(self, resumes):
-        """
-        Parameters
-        ----------
-        resumes : dict
-
-        {
-            filename : resume_text
-        }
-        """
-
-        if len(resumes) == 0:
-            raise ValueError("No resumes found.")
-
-        self.resume_names = list(resumes.keys())
-
-        self.resume_texts = list(resumes.values())
-
-        embeddings = self.model.encode(
-            self.resume_texts,
-            batch_size=16,
-            convert_to_numpy=True,
-            normalize_embeddings=True,
-            show_progress_bar=False
-        ).astype(np.float32)
-
-        dimension = embeddings.shape[1]
-
-        self.index = faiss.IndexFlatIP(dimension)
-
-        self.index.add(embeddings)
-
-        print(f"Indexed {len(self.resume_names)} resumes.")
-
-    # -------------------------------------------------------
-    # Search Similar Resumes
-    # -------------------------------------------------------
-
-    def search(self, query, top_k=5):
-
-        if self.index is None:
-            raise ValueError("Index has not been built.")
-
-        query_embedding = self.model.encode(
-            [query],
-            convert_to_numpy=True,
-            normalize_embeddings=True
-        ).astype(np.float32)
-
-        top_k = min(top_k, len(self.resume_names))
-
-        scores, indices = self.index.search(
-            query_embedding,
-            top_k
+        self.model=SentenceTransformer(
+            settings.EMBEDDING_MODEL
         )
 
-        results = []
+        self.index=None
 
-        for score, idx in zip(scores[0], indices[0]):
+        self.metadata=[]
 
-            if idx == -1:
-                continue
 
-            results.append(
-                {
-                    "name": self.resume_names[idx],
-                    "text": self.resume_texts[idx],
-                    "score": round(float(score), 4)
-                }
-            )
+
+    def build_index(self,resumes):
+
+
+        texts=list(resumes.values())
+
+
+        embeddings=self.model.encode(
+
+            texts,
+
+            normalize_embeddings=True
+
+        ).astype(
+            "float32"
+        )
+
+
+        dim=embeddings.shape[1]
+
+
+        self.index=faiss.IndexFlatIP(dim)
+
+
+        self.index.add(
+            embeddings
+        )
+
+
+        self.metadata=[
+
+        {
+        "name":name,
+        "text":text
+        }
+
+        for name,text in resumes.items()
+
+        ]
+
+
+
+        os.makedirs(
+            "data/faiss_index",
+            exist_ok=True
+        )
+
+
+        faiss.write_index(
+
+            self.index,
+
+            settings.FAISS_PATH
+
+        )
+
+
+        save_json(
+
+            self.metadata,
+
+            settings.METADATA_PATH
+
+        )
+
+
+
+    def search(
+        self,
+        query,
+        top_k=5
+    ):
+
+
+        query_embedding=self.model.encode(
+
+            [query],
+
+            normalize_embeddings=True
+
+        ).astype(
+            "float32"
+        )
+
+
+        scores,ids=self.index.search(
+
+            query_embedding,
+
+            top_k
+
+        )
+
+
+        results=[]
+
+
+        for score,idx in zip(
+            scores[0],
+            ids[0]
+        ):
+
+
+            results.append({
+
+            **self.metadata[idx],
+
+            "similarity":
+            float(score)
+
+            })
+
 
         return results
-
-    # -------------------------------------------------------
-    # Number of indexed resumes
-    # -------------------------------------------------------
-
-    def __len__(self):
-
-        return len(self.resume_names)

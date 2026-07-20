@@ -1,304 +1,187 @@
+import json
 import re
-import os
-import pandas as pd
+
+from src.llm import ask_llm
 
 
-class ResumeRanker:
 
-    # -----------------------------------------------------
-    # Generic field extractor
-    # -----------------------------------------------------
+# -------------------------------------------------------
+# Extract JSON safely
+# -------------------------------------------------------
 
-    @staticmethod
-    def extract_field(field, text):
+def extract_json(response):
 
-        pattern = rf"{field}\s*:\s*(.*)"
+    if not response:
+        return {}
 
-        match = re.search(
-            pattern,
-            text,
-            re.IGNORECASE
+
+    response = response.strip()
+
+
+    # Remove markdown formatting
+
+    response = response.replace(
+        "```json",
+        ""
+    )
+
+    response = response.replace(
+        "```",
+        ""
+    )
+
+
+    # Find JSON object
+
+    start = response.find("{")
+
+    end = response.rfind("}")
+
+
+    if start == -1 or end == -1:
+
+        return {}
+
+
+    json_text = response[start:end+1]
+
+
+    try:
+
+        return json.loads(json_text)
+
+
+    except json.JSONDecodeError:
+
+
+        # Fix common LLM JSON issues
+
+        json_text = re.sub(
+            r",\s*}",
+            "}",
+            json_text
         )
 
-        if match:
-            return match.group(1).strip()
 
-        return ""
+        json_text = re.sub(
+            r",\s*]",
+            "]",
+            json_text
+        )
 
-    # -----------------------------------------------------
-    # Parse Resume
-    # -----------------------------------------------------
 
-    @staticmethod
-    def parse_resume(text):
+        try:
+
+            return json.loads(json_text)
+
+        except:
+
+            return {}
+
+
+
+# -------------------------------------------------------
+# Resume Parser
+# -------------------------------------------------------
+
+def parse_resume(text):
+
+
+    prompt = f"""
+
+You are an expert resume parser.
+
+Extract information from this resume.
+
+Return ONLY valid JSON.
+
+No markdown.
+No explanation.
+
+
+JSON format:
+
+{{
+"name":"",
+"email":"",
+"phone":"",
+"location":"",
+"skills":[],
+"education":[],
+"experience":"",
+"projects":[],
+"certifications":[]
+}}
+
+
+Resume:
+
+{text}
+
+"""
+
+
+    response = ask_llm(
+        prompt,
+        temperature=0
+    )
+
+
+    # DEBUG
+    print("\n====== GROQ RESPONSE ======")
+    print(response)
+    print("==========================\n")
+
+
+    data = extract_json(response)
+
+
+
+    # If LLM fails, return fallback
+
+    if not data:
+
 
         return {
 
-            "Name":
-            ResumeRanker.extract_field(
-                "Name",
-                text
-            ),
+            "name":
+            text.split("\n")[0]
+            if text else "Unknown",
 
-            "Email":
-            ResumeRanker.extract_field(
-                "Email",
-                text
-            ),
 
-            "Phone":
-            ResumeRanker.extract_field(
-                "Phone",
-                text
-            ),
+            "email":
+            "",
 
-            "Location":
-            ResumeRanker.extract_field(
-                "Location",
-                text
-            ),
 
-            "Experience":
-            ResumeRanker.extract_field(
-                "Experience",
-                text
-            ),
+            "phone":
+            "",
 
-            "Skills":
-            ResumeRanker.extract_field(
-                "Skills",
-                text
-            ),
 
-            "Education":
-            ResumeRanker.extract_field(
-                "Education",
-                text
-            ),
+            "location":
+            "",
 
-            "Projects":
-            ResumeRanker.extract_field(
-                "Projects",
-                text
-            ),
 
-            "Work Experience":
-            ResumeRanker.extract_field(
-                "Work Experience",
-                text
-            )
+            "skills":
+            [],
+
+
+            "education":
+            [],
+
+
+            "experience":
+            "",
+
+
+            "projects":
+            [],
+
+
+            "certifications":
+            []
+
         }
 
-    # -----------------------------------------------------
-    # Extract Technical Skills from JD
-    # -----------------------------------------------------
 
-    @staticmethod
-    def extract_jd_skills(jd_text):
 
-        keywords = [
-
-            "python",
-            "java",
-            "c",
-            "c++",
-            "sql",
-            "mysql",
-            "postgresql",
-            "mongodb",
-            "machine learning",
-            "deep learning",
-            "tensorflow",
-            "pytorch",
-            "keras",
-            "nlp",
-            "llm",
-            "langchain",
-            "rag",
-            "transformers",
-            "huggingface",
-            "docker",
-            "kubernetes",
-            "git",
-            "linux",
-            "aws",
-            "azure",
-            "gcp",
-            "flask",
-            "fastapi",
-            "django",
-            "streamlit",
-            "pandas",
-            "numpy",
-            "opencv",
-            "power bi",
-            "excel"
-        ]
-
-        jd_lower = jd_text.lower()
-
-        found = []
-
-        for skill in keywords:
-
-            if skill in jd_lower:
-                found.append(skill)
-
-        return sorted(list(set(found)))
-
-    # -----------------------------------------------------
-    # Compare Resume Skills
-    # -----------------------------------------------------
-
-    @staticmethod
-    def compare_skills(
-        resume_skills,
-        jd_skills
-    ):
-
-        resume_set = {
-
-            x.strip().lower()
-
-            for x in resume_skills.split(",")
-
-            if x.strip()
-        }
-
-        jd_set = {
-
-            x.lower()
-
-            for x in jd_skills
-        }
-
-        matched = sorted(
-            resume_set.intersection(jd_set)
-        )
-
-        missing = sorted(
-            jd_set.difference(resume_set)
-        )
-
-        if len(jd_set) == 0:
-
-            percentage = 0
-
-        else:
-
-            percentage = round(
-
-                len(matched)
-
-                / len(jd_set)
-
-                * 100,
-
-                2
-            )
-
-        return matched, missing, percentage
-
-    # -----------------------------------------------------
-    # Create Shortlisted DataFrame
-    # -----------------------------------------------------
-
-    @staticmethod
-    def shortlist(
-        results,
-        jd_text
-    ):
-
-        jd_skills = ResumeRanker.extract_jd_skills(
-            jd_text
-        )
-
-        rows = []
-
-        for candidate in results:
-
-            data = ResumeRanker.parse_resume(
-                candidate["text"]
-            )
-
-            matched, missing, percent = \
-                ResumeRanker.compare_skills(
-
-                    data.get("Skills", ""),
-
-                    jd_skills
-                )
-
-            rows.append({
-
-                "Resume":
-                candidate["name"],
-
-                "Candidate":
-                data.get("Name", ""),
-
-                "Email":
-                data.get("Email", ""),
-
-                "Phone":
-                data.get("Phone", ""),
-
-                "Experience":
-                data.get("Experience", ""),
-
-                "Skills":
-                data.get("Skills", ""),
-
-                "Matched Skills":
-                ", ".join(matched),
-
-                "Missing Skills":
-                ", ".join(missing),
-
-                "Skill Match %":
-                percent,
-
-                "Similarity Score":
-                round(candidate["score"], 3)
-
-            })
-
-        df = pd.DataFrame(rows)
-
-        if not df.empty:
-
-            df = df.sort_values(
-
-                "Similarity Score",
-
-                ascending=False
-            )
-
-        return df
-
-    # -----------------------------------------------------
-    # Save Excel
-    # -----------------------------------------------------
-
-    @staticmethod
-    def save(
-
-        dataframe,
-
-        filename="outputs/shortlisted_candidates.xlsx"
-
-    ):
-
-        os.makedirs(
-            "outputs",
-            exist_ok=True
-        )
-
-        dataframe.to_excel(
-
-            filename,
-
-            index=False
-        )
-
-        return filename
+    return data

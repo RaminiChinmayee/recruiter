@@ -1,0 +1,22 @@
+[
+    {
+        "name": "resume_06_Ethan_Johnson.pdf",
+        "text": "Ethan Johnson\nDevOps Engineer\nEmail: ethan.johnson@example.com\nPhone: +1-555-0106\nProfessional Summary\nDevOps Engineer with experience building scalable software solutions and collaborating in Agile\nteams.\nSkills\nAWS, Docker, Kubernetes, Jenkins, Linux\nProjects\n(cid:127) CI/CD\n(cid:127) K8s Migration\nEducation\nB.Tech in Computer Science, GPA: 8.8/10\n"
+    },
+    {
+        "name": "resume_04_Liam_Davis.pdf",
+        "text": "Liam Davis\nJava Backend Developer\nEmail: liam.davis@example.com\nPhone: +1-555-0104\nProfessional Summary\nJava Backend Developer with experience building scalable software solutions and collaborating in\nAgile teams.\nSkills\nJava, Spring Boot, MySQL, Kafka, Docker\nProjects\n(cid:127) Banking API\n(cid:127) Order Service\nEducation\nB.Tech in Computer Science, GPA: 8.8/10\n"
+    },
+    {
+        "name": "resume_03_Olivia_Brown.pdf",
+        "text": "Olivia Brown\nML Engineer\nEmail: olivia.brown@example.com\nPhone: +1-555-0103\nProfessional Summary\nML Engineer with experience building scalable software solutions and collaborating in Agile teams.\nSkills\nPyTorch, TensorFlow, Transformers, FAISS, RAG\nProjects\n(cid:127) Resume Screening AI\n(cid:127) Chatbot\nEducation\nB.Tech in Computer Science, GPA: 8.8/10\n"
+    },
+    {
+        "name": "resume_02_Noah_Clark.pdf",
+        "text": "Noah Clark\nData Scientist\nEmail: noah.clark@example.com\nPhone: +1-555-0102\nProfessional Summary\nData Scientist with experience building scalable software solutions and collaborating in Agile teams.\nSkills\nPython, Pandas, scikit-learn, SQL, Power BI\nProjects\n(cid:127) Customer Churn\n(cid:127) Sales Forecast\nEducation\nB.Tech in Computer Science, GPA: 8.8/10\n"
+    },
+    {
+        "name": "resume_05_Sophia_Miller.pdf",
+        "text": "Sophia Miller\nFrontend Developer\nEmail: sophia.miller@example.com\nPhone: +1-555-0105\nProfessional Summary\nFrontend Developer with experience building scalable software solutions and collaborating in Agile\nteams.\nSkills\nReact, JavaScript, HTML, CSS, Redux\nProjects\n(cid:127) E-commerce UI\n(cid:127) Dashboard\nEducation\nB.Tech in Computer Science, GPA: 8.8/10\n"
+    }
+]
