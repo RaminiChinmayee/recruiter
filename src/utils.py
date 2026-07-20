@@ -1,31 +1,52 @@
 import re
 
 
-def extract(field, text):
+def clean_text(text: str) -> str:
+    """
+    Cleans extracted text.
+    """
 
-    m = re.search(f"{field}: (.*)", text)
+    if not text:
+        return ""
 
-    return m.group(1).strip() if m else ""
+    text = re.sub(r"\s+", " ", text)
+
+    text = re.sub(r"\n+", "\n", text)
+
+    return text.strip()
 
 
-def parse_resume(text):
+def split_skills(skill_string):
+    """
+    Converts comma separated skills to list.
+    """
 
-    return {
+    if not skill_string:
+        return []
 
-        "Name":extract("Name",text),
+    return [
 
-        "Email":extract("Email",text),
+        skill.strip()
 
-        "Phone":extract("Phone",text),
+        for skill in skill_string.split(",")
 
-        "Location":extract("Location",text),
+        if skill.strip()
 
-        "Experience":extract("Experience",text),
+    ]
 
-        "Skills":extract("Skills",text),
 
-        "Projects":extract("Projects",text),
+def normalize_skill(skill):
+    """
+    Lowercase skill.
+    """
 
-        "Education":extract("Education",text)
+    return skill.lower().strip()
 
-    }
+
+def similarity_to_percentage(score):
+    """
+    Converts cosine similarity
+    to percentage.
+    """
+
+    return round(score * 100, 2)

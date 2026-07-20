@@ -1,137 +1,253 @@
-import streamlit as st
 import os
+import tempfile
+import streamlit as st
 
-from src.parser import load_resumes
-from src.retriever import ResumeRetriever
-from src.ranking import ResumeRanker
 from src.llm import generate_job_description
+from src.resume_loader import (
+    load_uploaded_resumes,
+    extract_uploaded_file
+)
+from src.retriever import ResumeRetriever
+from src.parser import ResumeRanker
 
 st.set_page_config(
     page_title="AI Resume Screening System",
+    page_icon="🤖",
     layout="wide"
 )
 
 st.title("🤖 AI Resume Screening System")
 
-st.write("Generate a Job Description and shortlist the best candidates.")
+tab1, tab2 = st.tabs([
+    "Generate Job Description",
+    "Resume Screening"
+])
 
-# ------------------------------
-# Job Details
-# ------------------------------
+##############################################################
+# TAB 1
+##############################################################
 
-st.header("Job Details")
+with tab1:
 
-role = st.text_input("Job Title")
+    st.header("Generate Job Description")
 
-location = st.text_input("Location")
+    col1, col2 = st.columns(2)
 
-experience = st.text_input("Experience Required")
+    with col1:
 
-employment_type = st.selectbox(
-    "Employment Type",
-    [
-        "Full Time",
-        "Part Time",
-        "Internship",
-        "Contract"
-    ]
-)
+        role = st.text_input("Job Title")
 
-work_mode = st.selectbox(
-    "Work Mode",
-    [
-        "Onsite",
-        "Hybrid",
-        "Remote"
-    ]
-)
+        location = st.text_input("Location")
 
-salary = st.text_input("Salary")
+        experience = st.text_input("Experience")
 
-notice_period = st.text_input("Notice Period")
+        employment_type = st.selectbox(
+            "Employment Type",
+            [
+                "Full Time",
+                "Part Time",
+                "Internship",
+                "Contract"
+            ]
+        )
 
-education = st.text_input("Education")
+        work_mode = st.selectbox(
+            "Work Mode",
+            [
+                "Onsite",
+                "Hybrid",
+                "Remote"
+            ]
+        )
 
-technical_skills = st.text_area(
-    "Technical Skills"
-)
+        salary = st.text_input("Salary")
 
-soft_skills = st.text_area(
-    "Soft Skills"
-)
+        notice_period = st.text_input("Notice Period")
 
-responsibilities = st.text_area(
-    "Responsibilities"
-)
+    with col2:
 
-benefits = st.text_area(
-    "Benefits"
-)
+        education = st.text_input("Education")
 
-# ------------------------------
-# Generate JD
-# ------------------------------
+        technical_skills = st.text_area(
+            "Technical Skills"
+        )
 
-if st.button("Generate Job Description"):
+        soft_skills = st.text_area(
+            "Soft Skills"
+        )
 
-    details = {
+        responsibilities = st.text_area(
+            "Responsibilities"
+        )
 
-        "role": role,
+        benefits = st.text_area(
+            "Benefits"
+        )
 
-        "location": location,
+    if st.button("Generate Job Description"):
 
-        "experience": experience,
+        details = {
 
-        "employment_type": employment_type,
+            "role": role,
 
-        "work_mode": work_mode,
+            "location": location,
 
-        "salary": salary,
+            "experience": experience,
 
-        "notice_period": notice_period,
+            "employment_type": employment_type,
 
-        "education": education,
+            "work_mode": work_mode,
 
-        "technical_skills": technical_skills,
+            "salary": salary,
 
-        "soft_skills": soft_skills,
+            "notice_period": notice_period,
 
-        "responsibilities": responsibilities,
+            "education": education,
 
-        "benefits": benefits
-    }
+            "technical_skills": technical_skills,
 
-    with st.spinner("Generating Job Description..."):
+            "soft_skills": soft_skills,
 
-        jd = generate_job_description(details)
+            "responsibilities": responsibilities,
 
-    st.success("Job Description Generated")
+            "benefits": benefits
+        }
 
-    st.text_area(
-        "Generated Job Description",
-        jd,
-        height=350
+        with st.spinner("Generating Job Description..."):
+
+            jd = generate_job_description(details)
+
+        st.session_state["jd"] = jd
+
+    if "jd" in st.session_state:
+
+        st.success("Job Description Generated")
+
+        st.text_area(
+            "Generated Job Description",
+            st.session_state["jd"],
+            height=450
+        )
+
+        st.download_button(
+            "Download JD",
+            data=st.session_state["jd"],
+            file_name="Job_Description.txt",
+            mime="text/plain"
+        )
+
+##############################################################
+# TAB 2
+##############################################################
+
+with tab2:
+
+    st.header("Resume Screening")
+
+    st.subheader("Step 1 : Upload Job Description")
+
+    uploaded_jd = st.file_uploader(
+        "Upload JD",
+        type=[
+            "pdf",
+            "docx",
+            "txt"
+        ]
     )
 
-    # ------------------------------
-    # Load resumes
-    # ------------------------------
+    jd_text = ""
 
-    resumes = load_resumes("data/resumes")
+    if uploaded_jd is not None:
 
-    retriever = ResumeRetriever(resumes)
+        jd_text = extract_uploaded_file(uploaded_jd)
 
-    results = retriever.retrieve(
-        jd,
-        top_k=min(5, len(resumes))
+    else:
+
+        jd_text = st.text_area(
+            "OR Paste Job Description",
+            height=250
+        )
+
+    st.divider()
+
+    st.subheader("Step 2 : Upload Resumes")
+
+    uploaded_resumes = st.file_uploader(
+        "Upload Multiple Resumes",
+        type=[
+            "pdf",
+            "docx",
+            "txt"
+        ],
+        accept_multiple_files=True
     )
 
-    df = ResumeRanker.shortlist(results)
+    top_k = st.slider(
+        "Number of Candidates",
+        1,
+        20,
+        5
+    )
 
-    ResumeRanker.save(df)
+    if st.button("Find Best Candidates"):
 
-    st.header("Top Candidates")
+        if not jd_text.strip():
 
-    st.dataframe(df)
+            st.error("Please upload or paste Job Description.")
 
-    st.success("Ranking Complete")
+        elif not uploaded_resumes:
+
+            st.error("Please upload resumes.")
+
+        else:
+
+            with st.spinner("Reading resumes..."):
+
+                resumes = load_uploaded_resumes(
+                    uploaded_resumes
+                )
+
+            with st.spinner("Generating embeddings..."):
+
+                retriever = ResumeRetriever(
+                    resumes
+                )
+
+                results = retriever.retrieve(
+                    jd_text,
+                    top_k
+                )
+
+            df = ResumeRanker.shortlist(
+                results,jd_text
+            )
+
+            os.makedirs(
+                "outputs",
+                exist_ok=True
+            )
+
+            excel_path = ResumeRanker.save(df)
+
+            st.success("Ranking Complete")
+
+            st.dataframe(
+                df,
+                use_container_width=True
+            )
+
+            with open(
+                excel_path,
+                "rb"
+            ) as f:
+
+                st.download_button(
+
+                    "Download Excel",
+
+                    f,
+
+                    file_name="Shortlisted_Candidates.xlsx",
+
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
