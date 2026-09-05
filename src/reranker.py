@@ -1,34 +1,76 @@
-from sentence_transformers import CrossEncoder
 import numpy as np
+import streamlit as st
+
+from sentence_transformers import CrossEncoder
 
 from src.config import settings
+from src.utils import logger
 
 
+# --------------------------------------------------
+# Cached CrossEncoder
+# --------------------------------------------------
+
+@st.cache_resource
+def load_reranker_model():
+
+    logger.info(
+        "Loading CrossEncoder: %s",
+        settings.RERANKER_MODEL
+    )
+
+
+    model = CrossEncoder(
+        settings.RERANKER_MODEL
+    )
+
+
+    logger.info(
+        "CrossEncoder loaded successfully"
+    )
+
+
+    return model
+
+
+# --------------------------------------------------
+# Resume Reranker
+# --------------------------------------------------
 
 class ResumeReranker:
 
-
     def __init__(self):
 
-        self.model = CrossEncoder(
-            settings.RERANKER_MODEL
+        self.model = (
+            load_reranker_model()
         )
 
 
     # --------------------------------------------------
-    # Convert raw CrossEncoder score to 0-1 probability
+    # Normalize Score
     # --------------------------------------------------
 
     @staticmethod
     def normalize_score(score):
 
         return float(
-            1 / (1 + np.exp(-score))
+
+            1 /
+
+            (
+                1 +
+
+                np.exp(
+                    -score
+                )
+
+            )
+
         )
 
 
     # --------------------------------------------------
-    # Rerank Candidates
+    # Rerank
     # --------------------------------------------------
 
     def rerank(
@@ -38,66 +80,78 @@ class ResumeReranker:
         top_k=5
     ):
 
-
         if not candidates:
 
             return []
 
 
-
-        pairs = []
-
-
-        for item in candidates:
-
-            pairs.append(
-
-                (
-                    query,
-                    item["text"]
-                )
-
-            )
-
-
-
-        # Raw CrossEncoder scores
-
-        scores = self.model.predict(
-            pairs
+        logger.info(
+            "Reranking %d candidates",
+            len(candidates)
         )
 
 
+        pairs = [
+
+            (
+                query,
+                item["text"]
+            )
+
+            for item in candidates
+
+        ]
+
+
+        scores = self.model.predict(
+
+            pairs,
+
+            show_progress_bar=True
+        )
+
 
         for item, score in zip(
+
             candidates,
+
             scores
+
         ):
 
+            raw_score = float(
+                score
+            )
 
-            raw_score = float(score)
+
+            normalized_score = (
+                self.normalize_score(
+                    raw_score
+                )
+            )
 
 
-            normalized_score = self.normalize_score(
+            item["rerank_score"] = (
                 raw_score
             )
 
 
-            item["rerank_score"] = raw_score
+            item["score"] = (
+                normalized_score
+            )
 
-
-            item["score"] = normalized_score
-
-
-
-        # Sort using normalized relevance
 
         candidates.sort(
 
-            key=lambda x:x["score"],
+            key=lambda x: x["score"],
 
             reverse=True
 
+        )
+
+
+        logger.info(
+            "Reranking completed"
         )
 
 

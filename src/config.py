@@ -2,22 +2,31 @@ import os
 from dotenv import load_dotenv
 
 
+# Load variables from .env
 load_dotenv()
 
 
 class Settings:
 
-    GROQ_API_KEY = os.getenv(
-        "GROQ_API_KEY"
-    )
+    # --------------------------------------------------
+    # Groq
+    # --------------------------------------------------
 
-    LLM_MODEL = (
-        "llama-3.3-70b-versatile"
-    )
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-    EMBEDDING_MODEL = (
-        "all-MiniLM-L6-v2"
-    )
+    LLM_MODEL = "llama-3.1-8b-instant"
+
+
+    # --------------------------------------------------
+    # Embedding Model
+    # --------------------------------------------------
+
+    EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+
+    # --------------------------------------------------
+    # Cross Encoder
+    # --------------------------------------------------
 
     RERANKER_MODEL = (
         "cross-encoder/"
@@ -25,21 +34,39 @@ class Settings:
     )
 
 
-    FAISS_PATH = (
-        "data/faiss_index/"
+    # --------------------------------------------------
+    # FAISS
+    # --------------------------------------------------
+
+    FAISS_DIR = "data/faiss_index"
+
+    FAISS_PATH = os.path.join(
+        FAISS_DIR,
         "resume.index"
     )
 
-    METADATA_PATH = (
-        "data/faiss_index/"
+    METADATA_PATH = os.path.join(
+        FAISS_DIR,
         "metadata.json"
     )
 
 
-    RESUME_FOLDER = (
-        "data/resumes"
-    )
+    # --------------------------------------------------
+    # Resume Storage
+    # --------------------------------------------------
 
+    RESUME_FOLDER = "data/resumes"
+
+
+    # --------------------------------------------------
+    # Retrieval
+    # --------------------------------------------------
+
+    RETRIEVAL_TOP_K = 20
+
+    RERANK_TOP_K = 10
+
+    FINAL_TOP_K = 5
 
 
 settings = Settings()

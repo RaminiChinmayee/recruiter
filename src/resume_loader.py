@@ -2,14 +2,14 @@ import pdfplumber
 from docx import Document
 
 
-
-# -------------------------------------------------------
-# Extract PDF
-# -------------------------------------------------------
+# --------------------------------------------------
+# PDF Extraction
+# --------------------------------------------------
 
 def extract_pdf(file):
 
-    text = ""
+    text_parts = []
+
 
     with pdfplumber.open(file) as pdf:
 
@@ -19,40 +19,40 @@ def extract_pdf(file):
 
             if page_text:
 
-                text += page_text + "\n"
+                text_parts.append(
+                    page_text
+                )
 
 
-    return text
+    return "\n".join(text_parts)
 
 
-
-# -------------------------------------------------------
-# Extract DOCX
-# -------------------------------------------------------
+# --------------------------------------------------
+# DOCX Extraction
+# --------------------------------------------------
 
 def extract_docx(file):
 
     document = Document(file)
 
 
-    text = "\n".join(
+    paragraphs = [
 
-        para.text
+        para.text.strip()
 
         for para in document.paragraphs
 
         if para.text.strip()
 
-    )
+    ]
 
 
-    return text
+    return "\n".join(paragraphs)
 
 
-
-# -------------------------------------------------------
-# Extract TXT
-# -------------------------------------------------------
+# --------------------------------------------------
+# TXT Extraction
+# --------------------------------------------------
 
 def extract_txt(file):
 
@@ -62,14 +62,17 @@ def extract_txt(file):
     )
 
 
-
-# -------------------------------------------------------
-# Extract any uploaded file
-# -------------------------------------------------------
+# --------------------------------------------------
+# Single File Extraction
+# --------------------------------------------------
 
 def extract_uploaded_file(uploaded_file):
 
-    extension = uploaded_file.name.split(".")[-1].lower()
+    extension = (
+        uploaded_file.name
+        .split(".")[-1]
+        .lower()
+    )
 
 
     uploaded_file.seek(0)
@@ -77,33 +80,35 @@ def extract_uploaded_file(uploaded_file):
 
     if extension == "pdf":
 
-        return extract_pdf(uploaded_file)
-
+        return extract_pdf(
+            uploaded_file
+        )
 
 
     elif extension == "docx":
 
-        return extract_docx(uploaded_file)
-
+        return extract_docx(
+            uploaded_file
+        )
 
 
     elif extension == "txt":
 
-        return extract_txt(uploaded_file)
-
+        return extract_txt(
+            uploaded_file
+        )
 
 
     else:
 
         raise ValueError(
-            "Unsupported file format"
+            f"Unsupported file format: {extension}"
         )
 
 
-
-# -------------------------------------------------------
-# Load multiple resumes
-# -------------------------------------------------------
+# --------------------------------------------------
+# Multiple Resume Extraction
+# --------------------------------------------------
 
 def load_multiple_resumes(files):
 
@@ -114,18 +119,23 @@ def load_multiple_resumes(files):
 
         try:
 
-            text = extract_uploaded_file(file)
+            text = extract_uploaded_file(
+                file
+            )
 
 
-            if text.strip():
+            if text and text.strip():
 
-                resumes[file.name] = text
+                resumes[file.name] = (
+                    text.strip()
+                )
 
 
         except Exception as e:
 
             print(
-                f"Error reading {file.name}: {e}"
+                f"Error reading "
+                f"{file.name}: {e}"
             )
 
 

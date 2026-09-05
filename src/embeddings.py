@@ -1,50 +1,109 @@
-import faiss
-import numpy as np
 import os
+
+import faiss
+import streamlit as st
 
 from sentence_transformers import SentenceTransformer
 
 from src.config import settings
-from src.utils import save_json,load_json
+from src.utils import save_json, logger
 
 
+# --------------------------------------------------
+# Cached Embedding Model
+# --------------------------------------------------
+
+@st.cache_resource
+def load_embedding_model():
+
+    logger.info(
+        "Loading embedding model: %s",
+        settings.EMBEDDING_MODEL
+    )
+
+
+    model = SentenceTransformer(
+        settings.EMBEDDING_MODEL
+    )
+
+
+    logger.info(
+        "Embedding model loaded successfully"
+    )
+
+
+    return model
+
+
+# --------------------------------------------------
+# Resume Embedder
+# --------------------------------------------------
 
 class ResumeEmbedder:
 
-
     def __init__(self):
 
-        self.model=SentenceTransformer(
-            settings.EMBEDDING_MODEL
+        self.model = (
+            load_embedding_model()
         )
 
-        self.index=None
+        self.index = None
 
-        self.metadata=[]
-
-
-
-    def build_index(self,resumes):
+        self.metadata = []
 
 
-        texts=list(resumes.values())
+    # --------------------------------------------------
+    # Build FAISS Index
+    # --------------------------------------------------
+
+    def build_index(self, resumes):
+
+        if not resumes:
+
+            raise ValueError(
+                "No resumes available "
+                "to build the index."
+            )
 
 
-        embeddings=self.model.encode(
+        texts = list(
+            resumes.values()
+        )
+
+
+        logger.info(
+            "Generating embeddings for %d resumes",
+            len(texts)
+        )
+
+
+        embeddings = self.model.encode(
 
             texts,
 
-            normalize_embeddings=True
+            normalize_embeddings=True,
 
-        ).astype(
+            show_progress_bar=True
+        )
+
+
+        embeddings = embeddings.astype(
             "float32"
         )
 
 
-        dim=embeddings.shape[1]
+        dimension = embeddings.shape[1]
 
 
-        self.index=faiss.IndexFlatIP(dim)
+        logger.info(
+            "Embedding dimension: %d",
+            dimension
+        )
+
+
+        self.index = faiss.IndexFlatIP(
+            dimension
+        )
 
 
         self.index.add(
@@ -52,21 +111,20 @@ class ResumeEmbedder:
         )
 
 
-        self.metadata=[
+        self.metadata = [
 
-        {
-        "name":name,
-        "text":text
-        }
+            {
+                "name": name,
+                "text": text
+            }
 
-        for name,text in resumes.items()
+            for name, text in resumes.items()
 
         ]
 
 
-
         os.makedirs(
-            "data/faiss_index",
+            settings.FAISS_DIR,
             exist_ok=True
         )
 
@@ -76,7 +134,6 @@ class ResumeEmbedder:
             self.index,
 
             settings.FAISS_PATH
-
         )
 
 
@@ -85,10 +142,18 @@ class ResumeEmbedder:
             self.metadata,
 
             settings.METADATA_PATH
-
         )
 
 
+        logger.info(
+            "FAISS index built with %d resumes",
+            len(self.metadata)
+        )
+
+
+    # --------------------------------------------------
+    # Semantic Search
+    # --------------------------------------------------
 
     def search(
         self,
@@ -96,42 +161,73 @@ class ResumeEmbedder:
         top_k=5
     ):
 
+        if self.index is None:
 
-        query_embedding=self.model.encode(
+            raise ValueError(
+                "FAISS index has not been built."
+            )
+
+
+        if self.index.ntotal == 0:
+
+            return []
+
+
+        k = min(
+            top_k,
+            self.index.ntotal
+        )
+
+
+        logger.info(
+            "Generating query embedding"
+        )
+
+
+        query_embedding = self.model.encode(
 
             [query],
 
             normalize_embeddings=True
-
-        ).astype(
-            "float32"
         )
 
 
-        scores,ids=self.index.search(
+        query_embedding = (
+            query_embedding.astype(
+                "float32"
+            )
+        )
+
+
+        scores, ids = self.index.search(
 
             query_embedding,
 
-            top_k
-
+            k
         )
 
 
-        results=[]
+        results = []
 
 
-        for score,idx in zip(
+        for score, idx in zip(
+
             scores[0],
+
             ids[0]
+
         ):
+
+            if idx < 0:
+                continue
 
 
             results.append({
 
-            **self.metadata[idx],
+                **self.metadata[idx],
 
-            "similarity":
-            float(score)
+                "similarity":
+                    float(score)
 
             })
 

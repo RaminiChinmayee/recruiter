@@ -1,30 +1,50 @@
 from rank_bm25 import BM25Okapi
 
 from src.embeddings import ResumeEmbedder
-
+from src.utils import logger
 
 
 class HybridRetriever:
 
+    def __init__(self, resumes):
 
-    def __init__(self,resumes):
+        if not resumes:
+
+            raise ValueError(
+                "No resumes provided."
+            )
 
 
-        self.resumes=resumes
+        self.resumes = resumes
 
 
-        # Semantic search
+        # --------------------------------------------------
+        # Semantic Search
+        # --------------------------------------------------
 
-        self.embedder=ResumeEmbedder()
+        logger.info(
+            "Initializing semantic retriever"
+        )
+
+
+        self.embedder = ResumeEmbedder()
+
 
         self.embedder.build_index(
             resumes
         )
 
 
-        # Keyword search
+        # --------------------------------------------------
+        # BM25 Keyword Search
+        # --------------------------------------------------
 
-        corpus=[
+        logger.info(
+            "Building BM25 index"
+        )
+
+
+        corpus = [
 
             text.lower().split()
 
@@ -33,16 +53,24 @@ class HybridRetriever:
         ]
 
 
-        self.bm25=BM25Okapi(
+        self.bm25 = BM25Okapi(
             corpus
         )
 
 
-        self.names=list(
+        self.names = list(
             resumes.keys()
         )
 
 
+        logger.info(
+            "Hybrid retriever initialized"
+        )
+
+
+    # --------------------------------------------------
+    # Hybrid Search
+    # --------------------------------------------------
 
     def search(
         self,
@@ -50,103 +78,138 @@ class HybridRetriever:
         top_k=20
     ):
 
+        if not self.resumes:
 
-        # FAISS
+            return []
 
-        semantic_results=self.embedder.search(
-            query,
-            top_k
+
+        logger.info(
+            "Starting hybrid search"
         )
 
 
+        # --------------------------------------------------
+        # Semantic Search
+        # --------------------------------------------------
 
-        semantic_scores={}
-
-
-        for item in semantic_results:
-
-            semantic_scores[
-                item["name"]
-            ] = item["similarity"]
-
-
-
-
-        # BM25
+        semantic_results = (
+            self.embedder.search(
+                query,
+                top_k=top_k
+            )
+        )
 
 
-        bm25_scores=self.bm25.get_scores(
+        semantic_scores = {
 
+            item["name"]:
+                item["similarity"]
+
+            for item in semantic_results
+
+        }
+
+
+        # --------------------------------------------------
+        # BM25 Search
+        # --------------------------------------------------
+
+        query_tokens = (
             query.lower().split()
-
         )
 
 
-
-        keyword_scores={}
-
-
-        for i,score in enumerate(bm25_scores):
-
-            keyword_scores[
-                self.names[i]
-            ]=score
+        bm25_scores = (
+            self.bm25.get_scores(
+                query_tokens
+            )
+        )
 
 
+        max_bm25 = max(
+            bm25_scores
+        ) if len(bm25_scores) else 0
 
 
-        # Combine
+        # --------------------------------------------------
+        # Combine Scores
+        # --------------------------------------------------
+
+        results = []
 
 
-        results=[]
+        for i, (name, text) in enumerate(
+            self.resumes.items()
+        ):
 
-
-        for name,text in self.resumes.items():
-
-
-            semantic=semantic_scores.get(
-                name,
-                0
+            semantic_score = (
+                semantic_scores.get(
+                    name,
+                    0.0
+                )
             )
 
 
-            keyword=keyword_scores.get(
-                name,
-                0
+            keyword_score = (
+                float(
+                    bm25_scores[i]
+                )
+                if i < len(bm25_scores)
+                else 0.0
             )
 
 
-            hybrid=(
+            normalized_keyword = (
 
-                0.7*semantic
+                keyword_score / max_bm25
+
+                if max_bm25 > 0
+
+                else 0.0
+
+            )
+
+
+            hybrid_score = (
+
+                0.7 * semantic_score
 
                 +
 
-                0.3*(keyword/
-                     max(keyword_scores.values()
-                         or [1]))
+                0.3 * normalized_keyword
 
             )
 
 
             results.append({
 
-                "name":name,
+                "name": name,
 
-                "text":text,
+                "text": text,
 
-                "score":hybrid
+                "similarity":
+                    semantic_score,
+
+                "keyword_score":
+                    keyword_score,
+
+                "score":
+                    hybrid_score
 
             })
 
 
-
         results.sort(
 
-            key=lambda x:x["score"],
+            key=lambda x: x["score"],
 
             reverse=True
 
+        )
+
+
+        logger.info(
+            "Hybrid search completed"
         )
 
 

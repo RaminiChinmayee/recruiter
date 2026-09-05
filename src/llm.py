@@ -1,196 +1,123 @@
+import os
+from dotenv import load_dotenv
 from groq import Groq
-from src.config import settings
 
+load_dotenv()
 
-if not settings.GROQ_API_KEY:
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
-    raise ValueError(
-        "Missing GROQ_API_KEY"
-    )
+if not GROQ_API_KEY:
+    raise ValueError("GROQ_API_KEY is not set in environment variables.")
 
+client = Groq(api_key=GROQ_API_KEY)
 
-client = Groq(
-    api_key=settings.GROQ_API_KEY
-)
-
-
-
-# -------------------------------------------------------
-# Generic LLM Function
-# -------------------------------------------------------
+MODEL_NAME = "openai/gpt-oss-120b"
+# ======================================================
+# GENERIC LLM CALL
+# ======================================================
 
 def ask_llm(
-        prompt,
-        temperature=0.2
+    prompt,
+    temperature=0,
+    json_mode=False
 ):
 
-    response = client.chat.completions.create(
+    kwargs = {
+        "model": MODEL_NAME,
 
-        model=settings.LLM_MODEL,
-
-        messages=[
-
-            {
-                "role": "system",
-                "content":
-                """
-You are an expert technical recruiter.
-Generate ATS-friendly professional content.
-Never hallucinate information.
-"""
-            },
-
+        "messages": [
             {
                 "role": "user",
                 "content": prompt
             }
-
         ],
 
-        temperature=temperature
+        "temperature": temperature
+    }
 
+    if json_mode:
+        kwargs["response_format"] = {
+            "type": "json_object"
+        }
+
+    response = client.chat.completions.create(
+        **kwargs
     )
 
+    content = response.choices[0].message.content
 
-    return (
-        response
-        .choices[0]
-        .message
-        .content
-        .strip()
-    )
+    if not content:
+        raise ValueError(
+            "LLM returned an empty response."
+        )
+
+    return content
 
 
-
-# -------------------------------------------------------
-# Generate Job Description
-# -------------------------------------------------------
+# ======================================================
+# JOB DESCRIPTION GENERATOR
+# ======================================================
 
 def generate_job_description(details):
 
-
     prompt = f"""
+Create a professional ATS-optimized job description.
 
-Create a professional ATS optimized Job Description.
+Company:
+{details["company_name"]}
 
+Role:
+{details["role"]}
 
-Company Name:
-
-{details.get("company_name")}
-
-
-
-Job Title:
-
-{details.get("role")}
-
-
+Experience:
+{details["experience"]}
 
 Location:
-
-{details.get("location")}
-
-
-
-Experience Required:
-
-{details.get("experience")}
-
-
-
-Employment Type:
-
-{details.get("employment_type")}
-
-
-
-Work Mode:
-
-{details.get("work_mode")}
-
-
-
-Salary:
-
-{details.get("salary")}
-
-
-
-Education:
-
-{details.get("education")}
-
-
+{details["location"]}
 
 Technical Skills:
+{details["technical_skills"]}
 
-{details.get("technical_skills")}
-
-
-
-Soft Skills:
-
-{details.get("soft_skills")}
-
-
+Education:
+{details["education"]}
 
 Responsibilities:
+{details["responsibilities"]}
 
-{details.get("responsibilities")}
+Soft Skills:
+{details["soft_skills"]}
 
+Work Mode:
+{details["work_mode"]}
 
+Employment Type:
+{details["employment_type"]}
+
+Salary:
+{details["salary"]}
 
 Benefits:
+{details["benefits"]}
 
-{details.get("benefits")}
+Create a clear professional job description with:
 
+1. Job Title
+2. Company
+3. Location
+4. Experience
+5. Employment Type
+6. Job Summary
+7. Responsibilities
+8. Required Technical Skills
+9. Education
+10. Soft Skills
+11. Salary
+12. Benefits
 
-
-Generate the following sections:
-
-
-1. Company Overview
-
-2. About the Role
-
-3. Job Summary
-
-4. Key Responsibilities
-
-5. Required Technical Skills
-
-6. Required Soft Skills
-
-7. Educational Qualifications
-
-8. Preferred Qualifications
-
-9. Benefits
-
-10. Salary Details
-
-11. Work Mode
-
-12. Employment Type
-
-13. Application Process
-
-
-
-Rules:
-
-- Write like a professional recruiter
-- Optimize for ATS systems
-- Use bullet points
-- Avoid unnecessary repetition
-- Do not mention that AI generated it
-- Return only the Job Description
-
-
+Do not invent company-specific information.
 """
-
 
     return ask_llm(
         prompt,
-        temperature=0.4
+        temperature=0.2
     )

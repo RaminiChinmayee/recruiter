@@ -3,16 +3,26 @@ import os
 import logging
 
 
+# --------------------------------------------------
+# Logging Configuration
+# --------------------------------------------------
+
 logging.basicConfig(
     level=logging.INFO,
-    format=
-    "%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
-def save_json(data,path):
+logger = logging.getLogger(__name__)
 
-    folder=os.path.dirname(path)
+
+# --------------------------------------------------
+# Save JSON
+# --------------------------------------------------
+
+def save_json(data, path):
+
+    folder = os.path.dirname(path)
 
     if folder:
         os.makedirs(
@@ -29,32 +39,24 @@ def save_json(data,path):
         json.dump(
             data,
             f,
-            indent=4
+            indent=4,
+            ensure_ascii=False
         )
 
 
+# --------------------------------------------------
+# Load JSON
+# --------------------------------------------------
 
 def load_json(path):
 
     if not os.path.exists(path):
-        return {}
+        return None
 
     with open(
         path,
+        "r",
         encoding="utf-8"
     ) as f:
 
         return json.load(f)
-
-
-
-def clean_text(text):
-
-    if not text:
-        return ""
-
-    return (
-        text
-        .replace("\x00","")
-        .strip()
-    )

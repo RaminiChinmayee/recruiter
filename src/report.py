@@ -1,5 +1,3 @@
-# src/report.py
-
 import os
 from datetime import datetime
 
@@ -13,12 +11,13 @@ from reportlab.platypus import (
     TableStyle
 )
 
-from reportlab.lib.styles import getSampleStyleSheet
-
+from reportlab.lib import colors
+from reportlab.lib.styles import (
+    getSampleStyleSheet
+)
 
 
 OUTPUT_DIR = "outputs/reports"
-
 
 
 def create_output_folder():
@@ -29,19 +28,14 @@ def create_output_folder():
     )
 
 
-
-# -------------------------------------------------------
-# Excel Report
-# -------------------------------------------------------
+# --------------------------------------------------
+# Excel
+# --------------------------------------------------
 
 def export_excel(
-        dataframe,
-        filename="candidate_results.xlsx"
+    dataframe,
+    filename="candidate_results.xlsx"
 ):
-
-    """
-    Export candidate ranking data to Excel.
-    """
 
     create_output_folder()
 
@@ -61,30 +55,14 @@ def export_excel(
     return path
 
 
-
-# -------------------------------------------------------
-# Candidate PDF Report
-# -------------------------------------------------------
+# --------------------------------------------------
+# Candidate PDF
+# --------------------------------------------------
 
 def create_candidate_pdf(
-        candidate,
-        filename=None
+    candidate,
+    filename=None
 ):
-
-    """
-    Generate single candidate evaluation PDF.
-
-    candidate example:
-
-    {
-        "Name":"John",
-        "ATS Score":90,
-        "Skills":["Python","SQL"],
-        "Strengths":"...",
-        "Weaknesses":"..."
-    }
-
-    """
 
     create_output_folder()
 
@@ -92,70 +70,72 @@ def create_candidate_pdf(
     if filename is None:
 
         filename = (
+
             candidate.get(
-                "Name",
+                "Candidate",
                 "candidate"
             )
+
             +
+
             "_report.pdf"
+
         )
 
 
-    path=os.path.join(
+    path = os.path.join(
         OUTPUT_DIR,
         filename
     )
 
 
-    document=SimpleDocTemplate(
+    document = SimpleDocTemplate(
         path
     )
 
 
-    styles=getSampleStyleSheet()
-
-
-    elements=[]
-
-
-    title=Paragraph(
-
-        "AI Resume Screening Report",
-
-        styles["Title"]
-
+    styles = (
+        getSampleStyleSheet()
     )
 
 
-    elements.append(title)
+    elements = []
+
 
     elements.append(
-        Spacer(1,20)
+
+        Paragraph(
+            "AI Resume Screening Report",
+            styles["Title"]
+        )
+
     )
 
 
-    for key,value in candidate.items():
+    elements.append(
+        Spacer(1, 20)
+    )
 
 
-        if isinstance(value,list):
+    for key, value in candidate.items():
 
-            value=", ".join(value)
+        if isinstance(
+            value,
+            list
+        ):
 
-
-        text=f"""
-
-        <b>{key}</b> :
-
-        {value}
-
-        """
+            value = ", ".join(
+                str(x)
+                for x in value
+            )
 
 
         elements.append(
 
             Paragraph(
 
-                text,
+                f"<b>{key}</b>: "
+                f"{value}",
 
                 styles["BodyText"]
 
@@ -165,24 +145,21 @@ def create_candidate_pdf(
 
 
         elements.append(
-
-            Spacer(
-                1,
-                12
-            )
-
+            Spacer(1, 10)
         )
-
 
 
     elements.append(
 
         Paragraph(
 
-            f"""
-            Generated on:
-            {datetime.now().strftime("%d-%m-%Y")}
-            """,
+            "Generated on: "
+
+            +
+
+            datetime.now().strftime(
+                "%d-%m-%Y"
+            ),
 
             styles["Italic"]
 
@@ -199,82 +176,63 @@ def create_candidate_pdf(
     return path
 
 
-
-# -------------------------------------------------------
-# Complete Recruitment Report
-# -------------------------------------------------------
+# --------------------------------------------------
+# Recruitment Summary PDF
+# --------------------------------------------------
 
 def create_recruitment_report(
-        dataframe,
-        filename="recruitment_summary.pdf"
+    dataframe,
+    filename="recruitment_summary.pdf"
 ):
-
-    """
-    Creates recruiter dashboard PDF.
-
-    Contains:
-
-    - Total candidates
-    - Top candidates
-    - ATS scores
-    - Ranking table
-
-    """
-
 
     create_output_folder()
 
 
-
-    path=os.path.join(
+    path = os.path.join(
         OUTPUT_DIR,
         filename
     )
 
 
-    document=SimpleDocTemplate(
+    document = SimpleDocTemplate(
         path
     )
 
 
-    styles=getSampleStyleSheet()
+    styles = (
+        getSampleStyleSheet()
+    )
 
 
-    elements=[]
-
+    elements = []
 
 
     elements.append(
 
         Paragraph(
-
             "AI Recruitment Evaluation Report",
-
             styles["Title"]
-
         )
 
     )
 
 
     elements.append(
-        Spacer(1,20)
+        Spacer(1, 20)
     )
 
 
-
-    total=len(dataframe)
-
+    total = len(
+        dataframe
+    )
 
 
     elements.append(
 
         Paragraph(
 
-            f"""
-            Total Candidates Screened:
-            {total}
-            """,
+            f"Total Candidates Screened: "
+            f"{total}",
 
             styles["Heading2"]
 
@@ -284,77 +242,62 @@ def create_recruitment_report(
 
 
     elements.append(
-        Spacer(1,15)
+        Spacer(1, 15)
     )
 
 
-
-    # Create table data
-
-
-    table_data=[
+    table_data = [
 
         [
-
-        "Candidate",
-
-        "ATS Score",
-
-        "Similarity",
-
-        "Status"
-
+            "Candidate",
+            "ATS Score",
+            "Similarity",
+            "Recommendation"
         ]
 
     ]
 
 
-
-    for _,row in dataframe.iterrows():
-
+    for _, row in dataframe.iterrows():
 
         table_data.append(
 
             [
 
-            str(
-                row.get(
-                    "Candidate",
+                str(
                     row.get(
-                        "Resume",
-                        ""
+                        "Candidate",
+                        "-"
+                    )
+                ),
+
+                str(
+                    row.get(
+                        "ATS Score",
+                        "-"
+                    )
+                ),
+
+                str(
+                    row.get(
+                        "Semantic Similarity",
+                        "-"
+                    )
+                ),
+
+                str(
+                    row.get(
+                        "Recommendation",
+                        "-"
                     )
                 )
-            ),
-
-            str(
-                row.get(
-                    "ATS Score",
-                    "-"
-                )
-            ),
-
-            str(
-                row.get(
-                    "Similarity Score",
-                    "-"
-                )
-            ),
-
-            str(
-                row.get(
-                    "Recommendation",
-                    "-"
-                )
-            )
 
             ]
 
         )
 
 
-
-    table=Table(
+    table = Table(
         table_data,
         repeatRows=1
     )
@@ -366,17 +309,27 @@ def create_recruitment_report(
 
             [
 
-            ("GRID",
-             (0,0),
-             (-1,-1),
-             0.5,
-             None),
+                (
+                    "GRID",
+                    (0, 0),
+                    (-1, -1),
+                    0.5,
+                    colors.black
+                ),
 
+                (
+                    "VALIGN",
+                    (0, 0),
+                    (-1, -1),
+                    "TOP"
+                ),
 
-            ("VALIGN",
-             (0,0),
-             (-1,-1),
-             "TOP")
+                (
+                    "BACKGROUND",
+                    (0, 0),
+                    (-1, 0),
+                    colors.lightgrey
+                )
 
             ]
 
@@ -391,7 +344,7 @@ def create_recruitment_report(
 
 
     elements.append(
-        Spacer(1,20)
+        Spacer(1, 20)
     )
 
 
@@ -399,11 +352,9 @@ def create_recruitment_report(
 
         Paragraph(
 
-            """
-            This report was automatically
-            generated using GenAI based
-            resume screening pipeline.
-            """,
+            "This report was automatically "
+            "generated using the AI-powered "
+            "resume screening pipeline.",
 
             styles["BodyText"]
 
